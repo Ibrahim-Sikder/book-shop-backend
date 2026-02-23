@@ -24,7 +24,7 @@ export class ProductController {
 
   @Post()
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(Role.ADMIN) // Only admin creates products
+  @Roles(Role.ADMIN)
   @ApiBearerAuth('JWT-auth')
   @ApiOperation({ summary: 'Create a new product' })
   create(@Body() createProductDto: CreateProductDto) {

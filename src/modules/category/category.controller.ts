@@ -24,7 +24,7 @@ import { Role } from '@prisma/client';
 export class CategoryController {
   constructor(private readonly categoryService: CategoryService) {}
 
-  @Post('category')
+  @Post()
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.ADMIN)
   @ApiOperation({ summary: 'Create a new category (Admin only)' })
