@@ -1,6 +1,5 @@
 /* eslint-disable prettier/prettier */
 import { Injectable, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
-import { PrismaPg } from '@prisma/adapter-pg';
 import { PrismaClient } from '@prisma/client';
 
 @Injectable()
@@ -9,12 +8,13 @@ export class PrismaService
   implements OnModuleInit, OnModuleDestroy
 {
   constructor() {
-    const adapter = new PrismaPg({
-      connectionString: process.env.DATABASE_URL,
-    });
-
+    // Prisma v6 স্ট্যান্ডার্ড কনফিগারেশন
     super({
-      adapter,
+      datasources: {
+        db: {
+          url: process.env.DATABASE_URL,
+        },
+      },
       log:
         process.env.NODE_ENV === 'development'
           ? ['query', 'error', 'warn']
@@ -23,8 +23,13 @@ export class PrismaService
   }
 
   async onModuleInit() {
-    await this.$connect();
-    console.log('Database connected successfully!');
+    try {
+      await this.$connect();
+      console.log('Database connected successfully!');
+    } catch (error) {
+      console.error('Error connecting to database:', error);
+      throw error;
+    }
   }
 
   async onModuleDestroy() {
