@@ -1,16 +1,14 @@
 /* eslint-disable prettier/prettier */
-// DTO for changing user password
-
 import { ApiProperty } from '@nestjs/swagger';
 import { IsNotEmpty, IsString, Matches, MinLength } from 'class-validator';
 
 export class ChangePasswordDto {
   @ApiProperty({
-    description: 'New password for the user',
-    example: 'NewP@ssw0rd!',
+    description: 'Current password of the user', // Fixed: was "New password"
+    example: 'OldP@ssw0rd!',
   })
   @IsString()
-  @IsNotEmpty({ message: 'New password must not be empty' })
+  @IsNotEmpty({ message: 'Current password is required' })
   currentPassword: string;
 
   @ApiProperty({
@@ -19,7 +17,7 @@ export class ChangePasswordDto {
     minLength: 8,
   })
   @IsString()
-  @IsNotEmpty({ message: 'New password must not be empty' })
+  @IsNotEmpty({ message: 'New password is required' })
   @MinLength(8, { message: 'New password must be at least 8 characters long' })
   @Matches(
     /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/,

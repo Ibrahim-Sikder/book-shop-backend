@@ -1,0 +1,63 @@
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Patch,
+  Param,
+  Delete,
+  UseGuards,
+} from '@nestjs/common';
+import { ProductService } from './product.service';
+import { CreateProductDto } from './dto/create-product.dto';
+import { UpdateProductDto } from './dto/update-product.dto';
+import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
+import { JwtAuthGuard } from 'src/common/guards/jwt-auth-guards';
+import { RolesGuard } from 'src/common/guards/role-guards';
+import { Roles } from 'src/common/decorators/roles-decorator';
+import { Role } from '@prisma/client';
+
+@ApiTags('products')
+@Controller('products')
+export class ProductController {
+  constructor(private readonly productService: ProductService) {}
+
+  @Post()
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.ADMIN) // Only admin creates products
+  @ApiBearerAuth('JWT-auth')
+  @ApiOperation({ summary: 'Create a new product' })
+  create(@Body() createProductDto: CreateProductDto) {
+    return this.productService.create(createProductDto);
+  }
+
+  @Get()
+  @ApiOperation({ summary: 'Get all products' })
+  findAll() {
+    return this.productService.findAll();
+  }
+
+  @Get(':id')
+  @ApiOperation({ summary: 'Get product details' })
+  findOne(@Param('id') id: string) {
+    return this.productService.findOne(id);
+  }
+
+  @Patch(':id')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.ADMIN)
+  @ApiBearerAuth('JWT-auth')
+  @ApiOperation({ summary: 'Update product' })
+  update(@Param('id') id: string, @Body() updateProductDto: UpdateProductDto) {
+    return this.productService.update(id, updateProductDto);
+  }
+
+  @Delete(':id')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.ADMIN)
+  @ApiBearerAuth('JWT-auth')
+  @ApiOperation({ summary: 'Delete product' })
+  remove(@Param('id') id: string) {
+    return this.productService.remove(id);
+  }
+}
