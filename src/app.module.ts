@@ -14,9 +14,7 @@ import { ReviewsModule } from './modules/reviews/reviews.module';
 import { WishlistModule } from './modules/wishlist/wishlist.module';
 import { CouponsModule } from './modules/coupons/coupons.module';
 import { PaymentsModule } from './modules/payments/payments.module';
-import { PaymentsService } from './nest/modules/payments/payments.service';
-import { PaymentsService } from './nest/modules/payments/payments.service';
-import { PaymentsModule } from './modules/payments/payments.module';
+import { PaymentsService } from './modules/payments/payments.service';
 
 @Module({
   imports: [
