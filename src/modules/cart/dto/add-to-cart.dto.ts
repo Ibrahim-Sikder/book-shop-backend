@@ -6,7 +6,12 @@ export class AddToCartDto {
   @IsUUID()
   productId: string;
 
-  @ApiProperty({ example: 'uuid-of-variant', required: false })
+  @ApiProperty({
+    example: 'uuid-of-variant',
+    required: false,
+    description:
+      'Required if the product has variants (e.g., Size M, Red). Otherwise omit.',
+  })
   @IsUUID()
   @IsOptional()
   variantId?: string;
