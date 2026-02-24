@@ -5,7 +5,7 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { CreateOrderDto } from './dto/create-order.dto';
-import { OrderStatus, PaymentStatus } from '@prisma/client';
+import { OrderStatus, PaymentStatus, Prisma } from '@prisma/client';
 
 @Injectable()
 export class OrderService {
@@ -21,7 +21,14 @@ export class OrderService {
     // 2. Get Active Cart
     const cart = await this.prisma.cart.findFirst({
       where: { userId, checkedOut: false },
-      include: { cartItems: { include: { product: true, variant: true } } },
+      include: {
+        cartItems: {
+          include: {
+            product: { include: { images: true } },
+            variant: true,
+          },
+        },
+      },
     });
 
     if (!cart || cart.cartItems.length === 0) {
@@ -31,10 +38,11 @@ export class OrderService {
     // 3. Calculate Totals & Validate Stock
     let subTotal = 0;
     for (const item of cart.cartItems) {
+      if (!item.product) continue;
+
       const price = item.variant ? item.variant.price : item.product.price;
       subTotal += Number(price) * item.quantity;
 
-      // Stock Check (Simple)
       const stock = item.variant ? item.variant.stock : item.product.stock;
       if (stock < item.quantity) {
         throw new BadRequestException(
@@ -43,26 +51,37 @@ export class OrderService {
       }
     }
 
-    // 4. Transaction: Create Order, Deduct Stock, Clear Cart
+    // 4. Transaction
     const order = await this.prisma.$transaction(async (tx) => {
-      // Create Order
       const newOrder = await tx.order.create({
         data: {
           userId,
           orderNumber: `ORD-${Date.now()}`,
           status: OrderStatus.PENDING,
           subTotal,
-          totalAmount: subTotal, // Add shipping/tax logic here if needed
-          shippingAddress: `${address.street}, ${address.city}, ${address.country}`, // Simplified JSON storage would be better
+          totalAmount: subTotal,
+          shippingAddress: `${address.street}, ${address.city}, ${address.country}`,
           billingAddress: `${address.street}, ${address.city}`,
           note: dto.note,
           cartId: cart.id,
         },
       });
 
-      // Create Order Items & Deduct Stock
       for (const item of cart.cartItems) {
+        if (!item.product) continue;
+
         const price = item.variant ? item.variant.price : item.product.price;
+
+        // FIX: Use Prisma.JsonNull instead of raw null for JSON fields
+        const attributesInput = item.variant
+          ? (item.variant.attributes as Prisma.InputJsonValue)
+          : Prisma.JsonNull;
+
+        // FIX: Safely get image URL
+        const firstImageUrl =
+          item.product.images && item.product.images.length > 0
+            ? item.product.images[0].url
+            : null;
 
         await tx.orderItem.create({
           data: {
@@ -70,17 +89,17 @@ export class OrderService {
             productId: item.productId,
             variantId: item.variantId,
             quantity: item.quantity,
-            price: price,
+            price: price, // Prisma usually accepts number for Decimal fields
             productName: item.product.name,
-            productImage: item.product.images[0]?.url || null,
-            productAttributes: item.variant ? item.variant.attributes : null,
+            productImage: firstImageUrl,
+            productAttributes: attributesInput,
           },
         });
 
         // Deduct Stock
         if (item.variant) {
           await tx.productVariant.update({
-            where: { id: item.variantId },
+            where: { id: item.variantId! }, // Safe because item.variant exists
             data: { stock: { decrement: item.quantity } },
           });
         } else {
@@ -97,7 +116,7 @@ export class OrderService {
         data: { checkedOut: true },
       });
 
-      // Create Pending Payment Record
+      // Create Pending Payment
       await tx.payment.create({
         data: {
           orderId: newOrder.id,

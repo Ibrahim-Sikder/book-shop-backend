@@ -11,29 +11,32 @@ export class CartService {
   constructor(private prisma: PrismaService) {}
 
   async getCart(userId: string) {
-    let cart = await this.prisma.cart.findFirst({
-      where: { userId, checkedOut: false },
-      include: {
-        cartItems: {
-          include: {
-            product: { include: { images: true } },
-            variant: true,
-          },
+    // Define the include object once to ensure the return type is consistent
+    const cartInclude = {
+      cartItems: {
+        include: {
+          product: { include: { images: true } },
+          variant: true,
         },
       },
+    };
+
+    let cart = await this.prisma.cart.findFirst({
+      where: { userId, checkedOut: false },
+      include: cartInclude,
     });
 
     if (!cart) {
       cart = await this.prisma.cart.create({
         data: { userId },
-        include: { cartItems: true },
+        include: cartInclude, // FIX: Apply the same includes here to match the type
       });
     }
     return cart;
   }
 
   async addToCart(userId: string, dto: AddToCartDto) {
-    // 1. Validate Product/Variant
+    // 1. Validate Product
     const product = await this.prisma.product.findUnique({
       where: { id: dto.productId },
       include: { variants: true },
@@ -41,24 +44,29 @@ export class CartService {
 
     if (!product) throw new NotFoundException('Product not found');
 
-    // If variantId is provided, validate it exists and belongs to product
-    let variant = null;
+    // 2. Validate Variant and Stock
+    let variant: any = null;
+
     if (dto.variantId) {
-      variant = product.variants.find((v) => v.id === dto.variantId);
-      if (!variant)
+      if (product.variants && product.variants.length > 0) {
+        variant = product.variants.find((v) => v.id === dto.variantId);
+      }
+
+      if (!variant) {
         throw new BadRequestException('Invalid variant for this product');
+      }
 
       if (variant.stock < dto.quantity) {
         throw new BadRequestException('Insufficient stock for this variant');
       }
     } else {
-      // Simple product check
+      // If no variant, check main product stock
       if (product.stock < dto.quantity) {
         throw new BadRequestException('Insufficient stock');
       }
     }
 
-    // 2. Get or Create Cart
+    // 3. Get or Create Cart
     let cart = await this.prisma.cart.findFirst({
       where: { userId, checkedOut: false },
     });
@@ -67,12 +75,12 @@ export class CartService {
       cart = await this.prisma.cart.create({ data: { userId } });
     }
 
-    // 3. Check if item exists in cart
+    // 4. Check if item exists in cart (matching both product and variant)
     const existingItem = await this.prisma.cartItem.findFirst({
       where: {
         cartId: cart.id,
         productId: dto.productId,
-        variantId: dto.variantId, // Match both product and variant
+        variantId: dto.variantId || null, // Ensure we match null if no variantId is provided
       },
     });
 
@@ -82,7 +90,7 @@ export class CartService {
         data: { quantity: existingItem.quantity + dto.quantity },
       });
     } else {
-      // Price logic: Variant price takes precedence over Product price
+      // Determine price: use variant price if available, else product price
       const price = variant ? variant.price : product.price;
 
       return this.prisma.cartItem.create({
@@ -101,6 +109,7 @@ export class CartService {
     const cart = await this.prisma.cart.findFirst({
       where: { userId, checkedOut: false },
     });
+
     if (!cart) throw new NotFoundException('Cart not found');
 
     return this.prisma.cartItem.deleteMany({
@@ -112,11 +121,13 @@ export class CartService {
     const cart = await this.prisma.cart.findFirst({
       where: { userId, checkedOut: false },
     });
+
     if (!cart) return { message: 'Cart is already empty' };
 
     await this.prisma.cartItem.deleteMany({
       where: { cartId: cart.id },
     });
+
     return { message: 'Cart cleared' };
   }
 }
