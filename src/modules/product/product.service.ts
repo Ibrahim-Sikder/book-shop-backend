@@ -11,7 +11,7 @@ export class ProductService {
   async create(createProductDto: CreateProductDto) {
     const { images, ...productData } = createProductDto;
 
-    // 1. Generate slug if missing (Guarantee it's a string)
+    // 1. Generate slug if missing
     const slug =
       productData.slug ||
       productData.name
@@ -19,19 +19,19 @@ export class ProductService {
         .replace(/ /g, '-')
         .replace(/[^\w-]+/g, '');
 
-    // 2. Prepare payload ensuring slug is present and is a string
     const payload = {
       ...productData,
-      slug, // This overwrites the optional slug with a definite string
+      slug,
     };
 
-    // Create Product and Images in a transaction
+    // 2. Use Transaction to ensure data consistency
     return this.prisma.$transaction(async (tx) => {
+      // Create Product
       const product = await tx.product.create({
         data: payload,
       });
 
-      // If images are provided, create them
+      // Create Images if provided
       if (images && images.length > 0) {
         await tx.productImage.createMany({
           data: images.map((url, index) => ({
@@ -42,7 +42,22 @@ export class ProductService {
         });
       }
 
-      return this.findOne(product.id); // Return full product with images
+      // 3. IMPORTANT: Fetch the product using 'tx' (transaction client), NOT 'this.prisma'
+      // This allows seeing the uncommitted changes within the transaction.
+      const fullProduct = await tx.product.findUnique({
+        where: { id: product.id },
+        include: {
+          category: true,
+          images: true,
+          reviews: true,
+        },
+      });
+
+      if (!fullProduct) {
+        throw new NotFoundException('Product creation failed');
+      }
+
+      return fullProduct;
     });
   }
 
@@ -74,16 +89,17 @@ export class ProductService {
   async update(id: string, updateProductDto: UpdateProductDto) {
     const { images, ...productData } = updateProductDto;
 
-    await this.findOne(id); // Check existence
+    // ট্রানজেকশন শুরু করার আগে চেক করা (this.prisma ব্যবহার করা নিরাপদ)
+    await this.findOne(id);
 
     return this.prisma.$transaction(async (tx) => {
-      // Update Product
+      // ১. প্রোডাক্ট আপডেট করা
       await tx.product.update({
         where: { id },
         data: productData,
       });
 
-      // Handle Images: Simple strategy (Delete old, Add new)
+      // ২. ইমেজ হ্যান্ডেল করা
       if (images) {
         await tx.productImage.deleteMany({ where: { productId: id } });
         await tx.productImage.createMany({
@@ -95,7 +111,21 @@ export class ProductService {
         });
       }
 
-      return this.findOne(id);
+      // ৩. আপডেটেড ডাটা ফেচ করা (এখানে this.findOne না ব্যবহার করে tx ব্যবহার করা হয়েছে)
+      const updatedProduct = await tx.product.findUnique({
+        where: { id },
+        include: {
+          category: true,
+          images: true,
+          reviews: true,
+        },
+      });
+
+      if (!updatedProduct) {
+        throw new NotFoundException('Product not found after update');
+      }
+
+      return updatedProduct;
     });
   }
 

@@ -1,17 +1,25 @@
+/* eslint-disable prettier/prettier */
 import {
+  Body,
   Controller,
   Get,
   Post,
-  Body,
   Patch,
   Param,
   Delete,
+  HttpCode,
+  HttpStatus,
   UseGuards,
 } from '@nestjs/common';
 import { ProductService } from './product.service';
 import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
-import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiBearerAuth,
+  ApiResponse,
+} from '@nestjs/swagger';
 import { JwtAuthGuard } from 'src/common/guards/jwt-auth-guards';
 import { RolesGuard } from 'src/common/guards/role-guards';
 import { Roles } from 'src/common/decorators/roles-decorator';
@@ -26,38 +34,78 @@ export class ProductController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.ADMIN)
   @ApiBearerAuth('JWT-auth')
-  @ApiOperation({ summary: 'Create a new product' })
-  create(@Body() createProductDto: CreateProductDto) {
-    return this.productService.create(createProductDto);
+  @HttpCode(HttpStatus.CREATED)
+  @ApiOperation({
+    summary: 'Create a new product',
+    description: 'Creates a new product account',
+  })
+  @ApiResponse({
+    status: 201,
+    description: 'Product successfully created',
+  })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 403, description: 'Forbidden - Admin only' })
+  async create(@Body() createProductDto: CreateProductDto) {
+    return await this.productService.create(createProductDto);
   }
 
   @Get()
-  @ApiOperation({ summary: 'Get all products' })
-  findAll() {
-    return this.productService.findAll();
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Get all products',
+    description: 'Retrieves a list of all available products',
+  })
+  @ApiResponse({ status: 200, description: 'List of products retrieved' })
+  async findAll() {
+    return await this.productService.findAll();
   }
 
   @Get(':id')
-  @ApiOperation({ summary: 'Get product details' })
-  findOne(@Param('id') id: string) {
-    return this.productService.findOne(id);
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Get product details',
+    description: 'Retrieves details of a specific product by ID',
+  })
+  @ApiResponse({ status: 200, description: 'Product details retrieved' })
+  @ApiResponse({ status: 404, description: 'Product not found' })
+  async findOne(@Param('id') id: string) {
+    return await this.productService.findOne(id);
   }
 
   @Patch(':id')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.ADMIN)
   @ApiBearerAuth('JWT-auth')
-  @ApiOperation({ summary: 'Update product' })
-  update(@Param('id') id: string, @Body() updateProductDto: UpdateProductDto) {
-    return this.productService.update(id, updateProductDto);
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Update product',
+    description: 'Updates details of an existing product',
+  })
+  @ApiResponse({ status: 200, description: 'Product successfully updated' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 403, description: 'Forbidden - Admin only' })
+  @ApiResponse({ status: 404, description: 'Product not found' })
+  async update(
+    @Param('id') id: string,
+    @Body() updateProductDto: UpdateProductDto,
+  ) {
+    return await this.productService.update(id, updateProductDto);
   }
 
   @Delete(':id')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.ADMIN)
   @ApiBearerAuth('JWT-auth')
-  @ApiOperation({ summary: 'Delete product' })
-  remove(@Param('id') id: string) {
-    return this.productService.remove(id);
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Delete product',
+    description: 'Deletes a specific product by ID',
+  })
+  @ApiResponse({ status: 200, description: 'Product successfully deleted' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 403, description: 'Forbidden - Admin only' })
+  @ApiResponse({ status: 404, description: 'Product not found' })
+  async remove(@Param('id') id: string) {
+    return await this.productService.remove(id);
   }
 }

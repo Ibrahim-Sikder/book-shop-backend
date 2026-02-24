@@ -27,7 +27,7 @@ async function bootstrap() {
 
   // enable cors
   app.enableCors({
-    origin: process.env.ALLOWED_ORIGINS?.split(',') ?? 'http://localhost:3000/',
+    origin: process.env.ALLOWED_ORIGINS?.split(',') ?? 'http://localhost:8000/',
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
   });
@@ -60,7 +60,7 @@ async function bootstrap() {
       },
       'JWT-refresh',
     )
-    .addServer('http://localhost:3001', 'Development server')
+    .addServer('http://localhost:8000', 'Development server')
     .build();
 
   const document = SwaggerModule.createDocument(app, config);
@@ -79,7 +79,7 @@ async function bootstrap() {
     `,
   });
 
-  await app.listen(process.env.PORT ?? 3001);
+  await app.listen(process.env.PORT ?? 8000);
 }
 bootstrap().catch((error) => {
   Logger.error('Error starting server', error);
