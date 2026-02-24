@@ -4,7 +4,7 @@ generator client {
 
 datasource db {
   provider = "postgresql"
-  // url      = env("DATABASE_URL")
+  url      = env("DATABASE_URL")
 }
 
 // ================= USER & AUTH =================
@@ -22,12 +22,13 @@ model User {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
-  carts     Cart[]
-  orders    Order[]
-  payments  Payment[]
-  reviews   Review[]
-  addresses Address[]
-  wishlist  Wishlist[]
+  carts          Cart[]
+  orders         Order[]
+  payments       Payment[]
+  reviews        Review[]
+  addresses      Address[]
+  wishlists      Wishlist[]
+  userActivities UserActivity[] // AI Tracking
 
   @@index([email])
   @@map("users")
@@ -63,7 +64,6 @@ model Category {
   @@map("categories")
 }
 
-// UNIVERSAL PRODUCT MODEL
 model Product {
   id           String   @id @default(uuid())
   name         String
@@ -74,31 +74,19 @@ model Product {
   costPrice    Decimal? @db.Decimal(10, 2)
   sku          String   @unique
   barcode      String?
-  stock        Int      @default(0)
-  weight       Decimal? @db.Decimal(10, 2) // kg
+  stock        Int      @default(0) // Base stock (used if no variants)
+  weight       Decimal? @db.Decimal(10, 2)
   brand        String?
   isActive     Boolean  @default(true)
   categoryId   String
 
-  // --- UNIVERSAL FIELDS FOR ALL CATEGORIES ---
-
-  // 1. For Food, Grocery, Pharmacy
-  expiryDate        DateTime? // Expiry date (Best before)
-  lowStockThreshold Int? // Alert when stock reaches this number
-
-  // 2. For Electronics, Gadgets, Furniture
-  warrantyMonths Int? // Warranty in months (e.g., 12, 24)
-  dimensions     Json? // { "length": 100, "width": 50, "height": 20, "unit": "cm" }
-
-  // 3. Flexible Attributes (For Category Specifics)
-  // Book: { "author": "...", "pages": 300 }
-  // Fashion: { "size": "L", "color": "Red", "material": "Cotton" }
-  // Jewelry: { "metal": "Gold", "purity": "24K" }
-  // Electronics: { "ram": "8GB", "storage": "256GB", "processor": "M1" }
-  attributes Json?
-
-  // 4. Tags (For SEO & Search)
-  tags String[] // ["summer", "new-arrival", "organic"]
+  // Universal Fields
+  expiryDate        DateTime?
+  lowStockThreshold Int?
+  warrantyMonths    Int?
+  dimensions        Json?
+  attributes        Json?
+  tags              String[]
 
   // SEO
   metaTitle       String?
@@ -107,21 +95,41 @@ model Product {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  // Relations
-  category   Category       @relation(fields: [categoryId], references: [id])
+  category   Category         @relation(fields: [categoryId], references: [id])
   images     ProductImage[]
+  variants   ProductVariant[] // NEW: Support for Fashion (Size/Color), Electronics (RAM)
   cartItems  CartItem[]
   orderItems OrderItem[]
   reviews    Review[]
-  wishlist   Wishlist[]
+  wishlists  Wishlist[]
+  activities UserActivity[] // AI Tracking
 
   @@index([sku])
   @@index([categoryId])
   @@index([isActive])
   @@index([slug])
   @@index([brand])
-  @@index([expiryDate]) // Important for Food/Pharmacy queries
   @@map("products")
+}
+
+// NEW: Universal Variant Model (Crucial for Fashion & Electronics)
+model ProductVariant {
+  id         String  @id @default(uuid())
+  productId  String
+  sku        String? @unique
+  price      Decimal @db.Decimal(10, 2) // Specific price for this variant
+  stock      Int     @default(0)
+  attributes Json? // e.g., { "color": "Red", "size": "M" } or { "ram": "16GB" }
+
+  product    Product     @relation(fields: [productId], references: [id], onDelete: Cascade)
+  cartItems  CartItem[]
+  orderItems OrderItem[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([productId])
+  @@map("product_variants")
 }
 
 model ProductImage {
@@ -157,6 +165,32 @@ model Review {
   @@map("reviews")
 }
 
+// ================= AI & ANALYTICS (New) =================
+model UserActivity {
+  id        String       @id @default(uuid())
+  userId    String
+  productId String? // Nullable for searches or home page visits
+  type      ActivityType
+  metadata  Json? // e.g., search query, click position, duration viewed
+
+  createdAt DateTime @default(now())
+
+  user    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  product Product? @relation(fields: [productId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([productId])
+  @@index([type])
+  @@map("user_activities")
+}
+
+enum ActivityType {
+  VIEW
+  SEARCH
+  ADD_TO_CART
+  PURCHASE
+}
+
 // ================= CART & ORDERS =================
 
 model Cart {
@@ -178,25 +212,29 @@ model CartItem {
   id        String  @id @default(uuid())
   quantity  Int     @default(1)
   unitPrice Decimal @db.Decimal(10, 2)
+
+  // If variantId is present, use it. Otherwise, use productId.
+  variantId String?
   productId String
   cartId    String
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  cart    Cart    @relation(fields: [cartId], references: [id], onDelete: Cascade)
-  product Product @relation(fields: [productId], references: [id])
+  cart    Cart            @relation(fields: [cartId], references: [id], onDelete: Cascade)
+  product Product         @relation(fields: [productId], references: [id])
+  variant ProductVariant? @relation(fields: [variantId], references: [id])
 
-  @@unique([cartId, productId])
+  @@unique([cartId, variantId])
+  @@unique([cartId, productId]) // Ensures uniqueness for simple products too
   @@index([cartId])
-  @@index([productId])
   @@map("cart_items")
 }
 
 model Order {
   id          String      @id @default(uuid())
   orderNumber String      @unique @default(cuid())
-  status      OrderStatus
+  status      OrderStatus @default(PENDING)
   note        String?
 
   // Financials
@@ -209,8 +247,8 @@ model Order {
   // Shipping Info
   shippingAddress String?
   billingAddress  String?
-  trackingNumber  String? // For tracking Furniture/Electronics
-  carrierName     String? // e.g., FedEx, UPS, Pathao
+  trackingNumber  String?
+  carrierName     String?
 
   userId   String
   cartId   String?
@@ -219,7 +257,6 @@ model Order {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  // Relations
   orderItems OrderItem[]
   cart       Cart?       @relation(fields: [cartId], references: [id])
   user       User        @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -233,9 +270,11 @@ model Order {
 }
 
 model OrderItem {
-  id        String  @id @default(uuid())
-  quantity  Int
-  price     Decimal @db.Decimal(10, 2)
+  id       String  @id @default(uuid())
+  quantity Int
+  price    Decimal @db.Decimal(10, 2)
+
+  variantId String?
   productId String
   orderId   String
 
@@ -246,11 +285,11 @@ model OrderItem {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  order   Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  product Product @relation(fields: [productId], references: [id])
+  order   Order           @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product Product         @relation(fields: [productId], references: [id])
+  variant ProductVariant? @relation(fields: [variantId], references: [id])
 
   @@index([orderId])
-  @@index([productId])
   @@map("order_items")
 }
 
@@ -272,7 +311,6 @@ model Payment {
   user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([orderId])
-  @@index([userId])
   @@index([transactionId])
   @@map("payments")
 }
@@ -305,7 +343,7 @@ enum CouponType {
 
 model Address {
   id         String  @id @default(uuid())
-  label      String?
+  label      String? // e.g. Home, Office
   fullName   String
   phone      String
   street     String
