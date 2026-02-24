@@ -13,6 +13,10 @@ import { OrdersModule } from './modules/orders/orders.module';
 import { ReviewsModule } from './modules/reviews/reviews.module';
 import { WishlistModule } from './modules/wishlist/wishlist.module';
 import { CouponsModule } from './modules/coupons/coupons.module';
+import { PaymentsModule } from './modules/payments/payments.module';
+import { PaymentsService } from './nest/modules/payments/payments.service';
+import { PaymentsService } from './nest/modules/payments/payments.service';
+import { PaymentsModule } from './modules/payments/payments.module';
 
 @Module({
   imports: [
@@ -31,8 +35,9 @@ import { CouponsModule } from './modules/coupons/coupons.module';
     ReviewsModule,
     WishlistModule,
     CouponsModule,
+    PaymentsModule,
   ],
   controllers: [AppController],
-  providers: [AppService],
+  providers: [AppService, PaymentsService],
 })
 export class AppModule {}
