@@ -11,6 +11,8 @@ import { AddressModule } from './modules/address/address.module';
 import { CartModule } from './modules/cart/cart.module';
 import { OrdersModule } from './modules/orders/orders.module';
 import { ReviewsModule } from './modules/reviews/reviews.module';
+import { WishlistModule } from './modules/wishlist/wishlist.module';
+import { CouponsModule } from './modules/coupons/coupons.module';
 
 @Module({
   imports: [
@@ -27,6 +29,8 @@ import { ReviewsModule } from './modules/reviews/reviews.module';
     CartModule,
     OrdersModule,
     ReviewsModule,
+    WishlistModule,
+    CouponsModule,
   ],
   controllers: [AppController],
   providers: [AppService],
