@@ -15,14 +15,21 @@ export class PaymentsService {
     userId: string,
     dto: CreatePaymentDto,
   ): Promise<PaymentResponseDto> {
-    // Verify order belongs to user
+    // 1. Safety Check
+    if (!userId) {
+      throw new BadRequestException(
+        'User ID is missing. Are you authenticated?',
+      );
+    }
+
+    // 2. Verify order belongs to user
     const order = await this.prisma.order.findFirst({
       where: { id: dto.orderId, userId },
     });
 
     if (!order) throw new NotFoundException('Order not found');
 
-    // Check if payment already exists
+    // 3. Check if payment already exists
     const existingPayment = await this.prisma.payment.findUnique({
       where: { orderId: dto.orderId },
     });
@@ -31,11 +38,17 @@ export class PaymentsService {
       throw new BadRequestException('Payment already initiated for this order');
     }
 
+    // 4. Create Payment
     const payment = await this.prisma.payment.create({
       data: {
         userId,
-        ...dto,
-        status: 'PENDING', // Default status
+        // Since 'orderId' is defined in your Prisma Schema,
+        // we assign it directly. We do NOT use 'connect'.
+        orderId: dto.orderId,
+        amount: dto.amount,
+        paymentMethod: dto.paymentMethod,
+        transactionId: dto.transactionId,
+        status: 'PENDING',
       },
     });
 
@@ -43,6 +56,8 @@ export class PaymentsService {
   }
 
   async findAll(userId: string) {
+    if (!userId) throw new BadRequestException('User ID missing');
+
     const payments = await this.prisma.payment.findMany({
       where: { userId },
       include: { order: true },
@@ -52,6 +67,8 @@ export class PaymentsService {
   }
 
   async findOne(id: string, userId: string) {
+    if (!userId) throw new BadRequestException('User ID missing');
+
     const payment = await this.prisma.payment.findFirst({
       where: { id, userId },
       include: { order: true },
@@ -60,7 +77,6 @@ export class PaymentsService {
     return this.mapToDto(payment);
   }
 
-  // Used by Webhooks or Admin to update status
   async updateStatus(id: string, status: string) {
     const updated = await this.prisma.payment.update({
       where: { id },

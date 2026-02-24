@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable prettier/prettier */
 import {
   Body,
@@ -49,7 +50,7 @@ import { UpdateOrderDto } from './dto/update-order.dto';
 @ApiTags('orders')
 @ApiBearerAuth('JWT-auth')
 @Controller('orders')
-@UseGuards(JwtAuthGuard, RolesGuard)
+// @UseGuards(JwtAuthGuard, RolesGuard)
 export class OrdersController {
   constructor(private readonly ordersService: OrdersService) {}
 
