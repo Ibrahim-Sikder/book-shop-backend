@@ -16,7 +16,7 @@ import { WishlistService } from './wishlist.service';
 import { JwtAuthGuard } from 'src/common/guards/jwt-auth-guards';
 import { GetUser } from 'src/common/decorators/get-user-decorators';
 
-@ApiTags('wishlist')
+@ApiTags('Wishlist')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard)
 @Controller('wishlist')
@@ -24,21 +24,25 @@ export class WishlistController {
   constructor(private readonly wishlistService: WishlistService) {}
 
   @Get()
-  @ApiOperation({ summary: 'Get my wishlist' })
-  findAll(@GetUser('id') userId: string) {
+  @ApiOperation({ summary: 'Get logged-in user wishlist' })
+  async findAll(@GetUser('id') userId: string) {
     return this.wishlistService.findAll(userId);
   }
 
   @Post('toggle/:productId')
-  @ApiOperation({ summary: 'Add or Remove item from wishlist' })
-  @ApiParam({ name: 'productId' })
-  toggle(@GetUser('id') userId: string, @Param('productId') productId: string) {
+  @ApiOperation({ summary: 'Toggle wishlist item (Add / Remove)' })
+  @ApiParam({ name: 'productId', type: String })
+  async toggle(
+    @GetUser('id') userId: string,
+    @Param('productId') productId: string,
+  ) {
     return this.wishlistService.toggle(userId, productId);
   }
 
   @Delete(':id')
-  @ApiOperation({ summary: 'Remove specific item by ID' })
-  remove(@GetUser('id') userId: string, @Param('id') id: string) {
+  @ApiOperation({ summary: 'Remove wishlist item by ID' })
+  @ApiParam({ name: 'id', type: String })
+  async remove(@GetUser('id') userId: string, @Param('id') id: string) {
     return this.wishlistService.remove(userId, id);
   }
 }
