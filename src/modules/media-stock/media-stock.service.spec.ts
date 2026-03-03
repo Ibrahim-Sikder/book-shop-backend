@@ -1,5 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { StockPhotoService } from './stock-photo.service';
+import { StockPhotoService } from './media-stock.service';
 
 describe('StockPhotoService', () => {
   let service: StockPhotoService;

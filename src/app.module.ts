@@ -1,3 +1,4 @@
+/* eslint-disable prettier/prettier */
 import { Module } from '@nestjs/common';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
@@ -15,9 +16,9 @@ import { WishlistModule } from './modules/wishlist/wishlist.module';
 import { CouponsModule } from './modules/coupons/coupons.module';
 import { PaymentsModule } from './modules/payments/payments.module';
 import { PaymentsService } from './modules/payments/payments.service';
-import { StockPhotoController } from './modules/stock-photo/stock-photo.controller';
-import { StockPhotoService } from './modules/stock-photo/stock-photo.service';
-import { StockPhotoModule } from './modules/stock-photo/stock-photo.module';
+import { MediaController } from './modules/media-stock/media-stock.controller';
+import { MediaService } from './modules/media-stock/media-stock.service';
+import { MediaModule } from './modules/media-stock/media-stock.module';
 
 @Module({
   imports: [
@@ -37,9 +38,9 @@ import { StockPhotoModule } from './modules/stock-photo/stock-photo.module';
     WishlistModule,
     CouponsModule,
     PaymentsModule,
-    StockPhotoModule,
+    MediaModule,
   ],
-  controllers: [AppController, StockPhotoController],
-  providers: [AppService, PaymentsService, StockPhotoService],
+  controllers: [AppController, MediaController],
+  providers: [AppService, PaymentsService, MediaService],
 })
-export class AppModule {}
+export class AppModule { }
