@@ -377,6 +377,51 @@ model Wishlist {
   @@map("wishlists")
 }
 
+model MediaFolder {
+  id   String    @id @default(uuid())
+  name String
+  type MediaType @default(IMAGE)
+
+  parentId String?
+  parent   MediaFolder?  @relation("MediaFolderHierarchy", fields: [parentId], references: [id], onDelete: Cascade)
+  children MediaFolder[] @relation("MediaFolderHierarchy")
+
+  files MediaFile[]
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  @@unique([name, parentId]) // allows same folder name under different parents
+  @@index([parentId])
+  @@map("media_folders")
+}
+
+model MediaFile {
+  id           String  @id @default(uuid())
+  publicId     String  @unique
+  url          String
+  thumbnailUrl String?
+  fileSize     Int?
+  mimeType     String?
+
+  folderId String
+  folder   MediaFolder @relation(fields: [folderId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  @@index([folderId])
+  @@map("media_files")
+}
+
+enum MediaType {
+  IMAGE
+  PRODUCT
+  DOCUMENT
+}
+
 // ================= ENUMS =================
 enum OrderStatus {
   PENDING
