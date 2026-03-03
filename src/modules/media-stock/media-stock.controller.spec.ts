@@ -1,5 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { StockPhotoController } from './stock-photo.controller';
+import { StockPhotoController } from './media-stock.controller';
 
 describe('StockPhotoController', () => {
   let controller: StockPhotoController;
